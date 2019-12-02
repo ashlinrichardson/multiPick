@@ -69,12 +69,10 @@ void zprInit(){
 void zprReshape(int w,int h){
   //callback triggered by fetching active GLUT window ID
   GLfloat ratio; // http://faculty.ycp.edu/~dbabcock/cs370/labs/lab07.html
-  // Set new screen extents
-  glViewport(0,0,w,h);
-  // Select projection matrix
-  glMatrixMode(GL_PROJECTION);
-  //glPushMatrix();
+  glViewport(0,0,w,h); // select new screen extents
+  glMatrixMode(GL_PROJECTION); // select projection matrix
   glLoadIdentity();
+  getMatrix();
   // Adjust viewing volume (orthographic)
   // If taller than wide adjust y
 
