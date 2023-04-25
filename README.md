@@ -1,5 +1,5 @@
 # multiPick
-Nigel's ZPR interface: multiple-picking example for linux. Have used on mac and windows before; this is the Ubuntu version
+[Nigel Stewart](http://www.nigels.com/glt/gltzpr/)'s ZPR interface: plus object picking example for linux. Have used on mac and windows before; this version is Ubuntu / linux oriented
 
 ![alt text](screenshot.png)
 
