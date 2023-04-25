@@ -1,4 +1,7 @@
-""" OpenGL Zoom Pan Rotate Widget for PyGTK
+""" 
+Starting trying to port to gtk3 (gave up for now will revisit) 
+
+    OpenGL Zoom Pan Rotate Widget for PyGTK
     subclass or otherwise assign a 'draw' function to an instance of this class
     The draw gets called back each time it should render
     The OpenGL context has been set up so you can just draw with naked gl* func
@@ -12,44 +15,71 @@
 
   sudo apt install python3-gobject gobject-introspection 
   python3 -m pip install  PyGObject
+python3 -m pip install PyOpenGL-accelerate
+
 """
+w, h = 640, 480
 from gi import pygtkcompat
-
-pygtkcompat.enable() 
+pygtkcompat.enable()
 pygtkcompat.enable_gtk(version='3.0')
-from gi import Gtk
+from gi.repository import Gtk
+from gi.repository import Gdk
+# from gi.repository import GdkGL
 print(Gtk)
+import cairo
 
-import gtk.gdk as gdk, gtk.gtkgl as gtkgl, gtk.gdkgl as gdkgl
+
+# from OpenGL import GLXext
+
+# from gi.repository import Gdk
+# from gi.repository import Gtkgl
+# from gi.repository import Gdkgl
 from OpenGL.GL import *
 from OpenGL.GLU import *
 from OpenGL.GLUT import *
+from OpenGL.GL.EXT import *
+import OpenGL.GL as GL
+
 import math
 from numpy import matrix
 
-class GLZPR(gtkgl.DrawingArea):
-    def __init__(self,w=640,h=480):
-        try:
-            glconfig = gdkgl.Config(mode = (gdkgl.MODE_RGB|gdkgl.MODE_DOUBLE|gdkgl.MODE_DEPTH))
-        except gtk.gdkgl.NoMatches:
-            glconfig = gdkgl.Config(mode = (gdkgl.MODE_RGB|gdkgl.MODE_DEPTH))
-        gtkgl.DrawingArea.__init__(self,glconfig)
-        self.set_size_request(w,h)
-        self.connect_after("realize",self._init)
-        self.connect("configure_event",self._reshape)
-        self.connect("expose_event",self._draw)
-        self.connect("button_press_event",self._mouseButton)
-        self.connect("button_release_event",self._mouseButton)
-        self.connect("motion_notify_event",self._mouseMotion)
-        self.connect("scroll_event",self._mouseScroll)
-        self.set_events(self.get_events()|
-            gdk.BUTTON_PRESS_MASK|gdk.BUTTON_RELEASE_MASK|
-            gdk.POINTER_MOTION_MASK|gdk.POINTER_MOTION_HINT_MASK)
-        self._zNear, self._zFar = -10.0, 10.0
-        self._zprReferencePoint = [0.,0.,0.,0.]
-        self._mouseX = self._mouseY = 0
-        self._dragPosX = self._dragPosY = self._dragPosZ = 0.
-        self._mouseRotate = self._mouseZoom = self._mousePan = False
+class GLZPR(Gtk.GLArea): # gtkgl.DrawingArea):
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls, *args, **kwargs)
+        return cls._instance
+
+    def __init__(self):
+        if not hasattr(self, '_is_initialized'):
+            self._is_initialized = True
+            super().__init__()
+            # try:
+            #     glconfig = GdkGL.Config(mode = (MODE_RGB|MODE_DOUBLE|MODE_DEPTH))
+            # except gtk.gdkgl.NoMatches:
+            #     glconfig = GdkGL.Config(mode = (MODE_RGB|MODE_DEPTH))
+            # self.my_glArea = my_glArea # aglArea()
+            #my_glArea.__init__(my_glArea._self)
+            #Gtk.GLArea.__init__(self) # ,glconfig)
+            self.set_has_depth_buffer(True) # my_glArea._self, True)
+            # Gtk.GLArea.set_has_depth_buffer(self, True)
+            self.set_size_request(w,h)
+            self.connect_after("realize",self._init)
+            self.connect("configure_event",self._reshape)
+            self.connect("draw", self._draw) #  self.connect("expose_event",self._draw)
+            self.connect("button_press_event",self._mouseButton)
+            self.connect("button_release_event",self._mouseButton)
+            self.connect("motion_notify_event",self._mouseMotion)
+            self.connect("scroll_event",self._mouseScroll)
+            self.set_events(self.get_events()|
+                Gdk.BUTTON_PRESS_MASK|Gdk.BUTTON_RELEASE_MASK|
+                Gdk.POINTER_MOTION_MASK|Gdk.POINTER_MOTION_HINT_MASK)
+            self._zNear, self._zFar = -10.0, 10.0
+            self._zprReferencePoint = [0.,0.,0.,0.]
+            self._mouseX = self._mouseY = 0
+            self._dragPosX = self._dragPosY = self._dragPosZ = 0.
+            self._mouseRotate = self._mouseZoom = self._mousePan = False
 
     class _Context:
         def __init__(self,widget):
@@ -58,27 +88,31 @@ class GLZPR(gtkgl.DrawingArea):
             self._modelview = self._projection = None
             self._persist = False
         def __enter__(self):
+            print("Enter context")
             assert(self._count == 0)
-            self.ctx = gtkgl.widget_get_gl_context(self._widget)
-            self.surface = gtkgl.widget_get_gl_drawable(self._widget)
-            self._begin = self.surface.gl_begin(self.ctx)
+            self.ctx = GLZPR()._instance.get_context()  # Gtk.GLArea.get_context(Gtk.GLArea) # widget_get_gl_context(self._widget)
+            self.surface = cairo.ImageSurface(cairo.FORMAT_ARGB32, w, h) # width, height)#  acairo.ImageSurface( GLSurface(self.ctx, w, h) # width, height)
+            # self.surface = cairo.GLSurface.create_for_window(self.window, self.ctx.get_attrib(GL.GLX_CONTEXT_ATTRIB_ID))
+            # self.surface = self.ctx.get_surface()  # self.ctx.get_context() # widget_get_gl_drawable(self._widget)
+            self.gl_drawable = self.ctx.get_window() # get_drawable() # self.gl_drawable = self.ctx.get_property('gl-drawable')
+            self._begin = True # self.surface.gl_begin(self.ctx)
             if self._begin:
                 self._count += 1
                 if self._projection is not None:
-                    glMatrixMode(GL_PROJECTION)
-                    glLoadMatrixd(self._projection)
+                    GL.glMatrixMode(GL_PROJECTION)
+                    GL.glLoadMatrixd(self._projection)
                 if self._modelview is not None:
-                    glMatrixMode(GL_MODELVIEW)
-                    glLoadMatrixd(self._modelview)
+                    GL.glMatrixMode(GL_MODELVIEW)
+                    GL.glLoadMatrixd(self._modelview)
                 return self
             return
         def __exit__(self,exc_type,exc_value,exc_traceback):
             if self._begin:
                 self._count -= 1
                 if self._persist and (exc_type is None):
-                    self._modelview = glGetDoublev(GL_MODELVIEW_MATRIX)
-                    self._projection = glGetDoublev(GL_PROJECTION_MATRIX)
-                self.surface.gl_end()
+                    self._modelview = GL.glGetDoublev(GL_MODELVIEW_MATRIX)
+                    self._projection = GL.glGetDoublev(GL_PROJECTION_MATRIX)
+                # self.surface.gl_end()
             del self.ctx
             del self.surface
             self._persist = False
@@ -105,37 +139,40 @@ class GLZPR(gtkgl.DrawingArea):
 
     def reset(self):
         with self.open_context(True):
-            glMatrixMode(GL_MODELVIEW)
-            glLoadIdentity()
+            GL.glMatrixMode(GL_MODELVIEW)
+            GL.glLoadIdentity()
 
     def init(self):
-        glLightfv(GL_LIGHT0,GL_AMBIENT, (0.,0.,0.,1.))
-        glLightfv(GL_LIGHT0,GL_DIFFUSE, (1.,1.,1.,1.))
-        glLightfv(GL_LIGHT0,GL_SPECULAR,(1.,1.,1.,1.))
-        glLightfv(GL_LIGHT0,GL_POSITION,(1.,1.,1.,0.))
-        glMaterialfv(GL_FRONT,GL_AMBIENT, (.7,.7,.7,1.))
-        glMaterialfv(GL_FRONT,GL_DIFFUSE, (.8,.8,.8,1.))
-        glMaterialfv(GL_FRONT,GL_SPECULAR,(1.,1.,1.,1.))
-        glMaterialfv(GL_FRONT,GL_SHININESS,100.0)
-        glEnable(GL_LIGHTING)
-        glEnable(GL_LIGHT0)
-        glDepthFunc(GL_LESS)
-        glEnable(GL_DEPTH_TEST)
-        glEnable(GL_NORMALIZE)
-        glEnable(GL_COLOR_MATERIAL)
+        GL.glClearColor(0.0, 0.0, 0.0, 1.0)
+        GL.glClear(GL.GL_COLOR_BUFFER_BIT)
+        GL.glLightfv(GL_LIGHT0,GL_AMBIENT, (0.,0.,0.,1.))
+        GL.glLightfv(GL_LIGHT0,GL_DIFFUSE, (1.,1.,1.,1.))
+        GL.glLightfv(GL_LIGHT0,GL_SPECULAR,(1.,1.,1.,1.))
+        GL.glLightfv(GL_LIGHT0,GL_POSITION,(1.,1.,1.,0.))
+        GL.glMaterialfv(GL_FRONT,GL_AMBIENT, (.7,.7,.7,1.))
+        GL.glMaterialfv(GL_FRONT,GL_DIFFUSE, (.8,.8,.8,1.))
+        GL.glMaterialfv(GL_FRONT,GL_SPECULAR,(1.,1.,1.,1.))
+        GL.glMaterialfv(GL_FRONT,GL_SHININESS,100.0)
+        GL.glEnable(GL_LIGHTING)
+        GL.glEnable(GL_LIGHT0)
+        GL.glDepthFunc(GL_LESS)
+        GL.glEnable(GL_DEPTH_TEST)
+        GL.glEnable(GL_NORMALIZE)
+        GL.glEnable(GL_COLOR_MATERIAL)
+        GL.glMatrixMode(GL.GL_MODELVIEW)
 
     def _reshape(self,widget,event):
         assert(self == widget)
         with self.open_context(True):
             x, y, width, height = self.get_allocation()
-            glViewport(0,0,width,height);
+            GL.glViewport(0,0,width,height);
             self._top    =  1.0
             self._bottom = -1.0
             self._left   = -float(width)/float(height)
             self._right  = -self._left
-            glMatrixMode(GL_PROJECTION)
-            glLoadIdentity()
-            glOrtho(self._left,self._right,self._bottom,self._top,self._zNear,self._zFar)
+            GL.glMatrixMode(GL_PROJECTION)
+            GL.glLoadIdentity()
+            GL.glOrtho(self._left,self._right,self._bottom,self._top,self._zNear,self._zFar)
         if hasattr(self,"reshape"):
             self.reshape(event,x,y,width,height) ### optionally implemented by subclasses
         return True
@@ -143,7 +180,9 @@ class GLZPR(gtkgl.DrawingArea):
     def _mouseMotion(self,widget,event):
         assert(widget==self)
         if event.is_hint:
-            x, y, state = event.window.get_pointer()
+            Z = event.window.get_pointer()
+            print("Z", Z)
+            x, y, state = Z #  event.window.get_pointer()
         else:
             x = event.x
             y = event.y
@@ -284,8 +323,8 @@ class GLZPR(gtkgl.DrawingArea):
 
     def _draw(self,widget,event):
         assert(self == widget)
-        with self.open_context() as ctx:
-            glMatrixMode(GL_MODELVIEW)
+        with self.open_context(True) as ctx:
+            GL.glMatrixMode(GL.GL_MODELVIEW)
             self.draw(event) ### implemented by subclasses
             if ctx.surface.is_double_buffered():
                 ctx.surface.swap_buffers()
@@ -325,15 +364,15 @@ def _demo_draw(event):
 if __name__ == '__main__':
     import sys
     glutInit(sys.argv)
-    gtk.gdk.threads_init()
-    window = gtk.Window(gtk.WINDOW_TOPLEVEL)
+    Gdk.threads_init()
+    window = Gtk.Window(Gtk.WINDOW_TOPLEVEL)
     window.set_title("Zoom Pan Rotate")
-    window.set_size_request(640,480)
+    window.set_size_request(w,h)
     window.connect("destroy",lambda event: gtk.main_quit())
-    vbox = gtk.VBox(False, 0)
+    vbox = Gtk.VBox(False, 0)
     window.add(vbox)
     zpr = GLZPR()
     zpr.draw = _demo_draw
     vbox.pack_start(zpr,True,True)
     window.show_all()
-    gtk.main()
+    Gtk.main()
