@@ -13,8 +13,12 @@
   sudo apt install python3-gobject gobject-introspection 
   python3 -m pip install  PyGObject
 """
+from gi import pygtkcompat
 
-import pygtk; pygtk.require('2.0')
+pygtkcompat.enable() 
+pygtkcompat.enable_gtk(version='3.0')
+from gi import Gtk; print Gtk
+
 import gtk.gdk as gdk, gtk.gtkgl as gtkgl, gtk.gdkgl as gdkgl
 from OpenGL.GL import *
 from OpenGL.GLU import *
