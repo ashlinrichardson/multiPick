@@ -17,7 +17,8 @@ from gi import pygtkcompat
 
 pygtkcompat.enable() 
 pygtkcompat.enable_gtk(version='3.0')
-from gi import Gtk; print Gtk
+from gi import Gtk
+print(Gtk)
 
 import gtk.gdk as gdk, gtk.gtkgl as gtkgl, gtk.gdkgl as gdkgl
 from OpenGL.GL import *
