@@ -1,4 +1,6 @@
-/* this code was originally c++ */
+/* from http://www.nigels.com/glt/gltzpr/
+   
+   this code was originally c++ */
 #include<stdlib.h>
 #include<memory.h>
 #include<stdio.h>
@@ -34,10 +36,12 @@ static void   pos(double *px, double *py, double *pz, const int x, const int y, 
 static void   getMatrix();
 static void   invertMatrix(const GLdouble *m, GLdouble *out );
 
+/* events */
 static void zprReshape(int w, int h);
 static void zprMouse(int button, int state, int x, int y);
 static void zprMotion(int x, int y);
 
+/* picking */
 static void zprPick(GLdouble x, GLdouble y,GLdouble delX, GLdouble delY);
 
 /* Configurable center point for zooming and rotation */
@@ -234,12 +238,12 @@ static void invertMatrix(const GLdouble *m, GLdouble *out ){
 
       /* Pre-compute 2x2 dets for first two rows when computing 
          cofactors of last two rows. */
-      d12 = m11*m22-m21*m12;
-      d13 = m11*m23-m21*m13;
-      d23 = m12*m23-m22*m13;
-      d24 = m12*m24-m22*m14;
-      d34 = m13*m24-m23*m14;
-      d41 = m14*m21-m24*m11;
+      d12 = m11 * m22 - m21 * m12;
+      d13 = m11 * m23 - m21 * m13;
+      d23 = m12 * m23 - m22 * m13;
+      d24 = m12 * m24 - m22 * m14;
+      d34 = m13 * m24 - m23 * m14;
+      d41 = m14 * m21 - m24 * m11;
 
       tmp[8] =  (m42 * d34 - m43 * d24 + m44 * d23) * invDet;
       tmp[9] = -(m41 * d34 + m43 * d41 + m44 * d13) * invDet;
